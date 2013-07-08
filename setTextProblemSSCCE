@@ -32,8 +32,6 @@ public class GamePanel extends JPanel implements ActionListener {
 	private static TrackingPanel trackingPanel; //keeps track of score, turn, and stuff
 	private static Player playerX, playerO, turnPlayer;
 	private ArrayList<MiniGame> miniGames;
-	private Graphics graphics;
-	private Graphics2D graphics2D;
 	
 	//constructor
 	public GamePanel() {
