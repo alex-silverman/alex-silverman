@@ -1,0 +1,339 @@
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.geom.Line2D;
+import java.util.ArrayList;
+import javax.swing.*;
+import javax.swing.BorderFactory;
+import javax.swing.JPanel;
+import java.awt.event.*;
+
+
+public class GameFrame extends JFrame {
+  
+	public static void main(String[] args) {
+		
+		JFrame gameFrame = new JFrame( "MyGame");
+		
+		gameFrame.setResizable(false);
+		gameFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		gameFrame.add( new GamePanel() );
+		gameFrame.pack();
+		gameFrame.setVisible(true);
+		
+	}
+}
+
+
+public class GamePanel extends JPanel implements ActionListener {
+	
+	private BoardPanel boardPanel; //comprised of 9 mini panels
+	/*RELEVANT*/
+	private static TrackingPanel trackingPanel; //keeps track of score, turn, and stuff
+	private static Player playerX, playerO, turnPlayer;
+	private ArrayList<MiniGame> miniGames;
+	private Graphics graphics;
+	private Graphics2D graphics2D;
+	
+	//constructor
+	public GamePanel() {
+		
+		super( new BorderLayout());
+		setFocusable(true);
+		
+		//create 2 new players, and make it X's turn
+		playerX = new Player(true, "X");
+		turnPlayer = playerX;
+		playerO = new Player(true, "O");
+		
+		//create tracking panel that will keep track of turns and stuff
+		trackingPanel = new TrackingPanel(this);
+			 	
+		//create panel that will hold the 9 mini games
+		boardPanel = new BoardPanel(this); 
+		
+		//add actionListeners to each button
+		miniGames = boardPanel.getMiniGames();
+		for (MiniGame mini : miniGames) {
+			for (SquareButton button : mini.getSquares())
+				button.addActionListener(this);
+		}
+		
+		//add the tracking and board panels
+		add( trackingPanel, BorderLayout.NORTH);
+		add( boardPanel, BorderLayout.CENTER);
+	}//end constructor
+
+	public void actionPerformed(ActionEvent e) {
+		
+		//loop through mini games
+		miniGameLoop:
+		for(int gameNum = 0; gameNum< 9; gameNum++) {
+			MiniGame mini = miniGames.get(gameNum);
+			SquareButton[] buttons = mini.getSquares();
+			
+			//loop through buttons of each mini game
+			for(int buttonNum = 0; buttonNum<9; buttonNum++) {
+				SquareButton button = buttons[buttonNum];
+				
+				//if user clicked on one of the squares on the board
+				if(e.getSource() == button) {
+					
+					//if the space isn't already taken
+					if( button.isEmpty() ) {
+						
+						//mark the space with the player's letter
+						ImageIcon icon = new ImageIcon(getClass().getResource("/Images/" + turnPlayer.getLetter() + ".PNG"));
+						button.setIcon(icon );
+						button.setEmpty(false);
+						
+						//change turns
+						changeTurns();
+						
+						//exit loops
+						break miniGameLoop;
+					}
+				}	
+			}//end loop through squares
+		}//end loop through minigames
+	}//end actionPerformed method
+	
+    public static Player getPlayer(String letter) {
+		if(letter == "X")
+			return playerX;
+		else
+			return playerO;
+    }
+	
+    public Player getPlayerTurn() {
+    	return turnPlayer;
+    }
+    
+    public TrackingPanel getTrackingPanel() {
+    	return trackingPanel;
+    }
+	
+	/*RELEVANT*/
+	public void changeTurns() {
+		if(turnPlayer == playerX)
+    		turnPlayer = playerO;
+    	else
+    		turnPlayer = playerX;
+    	
+    	trackingPanel.updateTurn();
+    }	
+}//end class GamePanel
+
+
+
+public class BoardPanel extends JPanel {
+
+	private ArrayList<MiniGame> miniGames;
+	
+	//constructs main panel and places all 9 mini games inside
+	public BoardPanel(GamePanel gp) {
+		 super(new GridLayout(3,3));
+		 
+		 //add miniGames to arrayList
+		 miniGames = new ArrayList<MiniGame>(9);
+		 for(int i = 1; i<=9; i++)
+			 miniGames.add(new MiniGame(gp, i));
+		
+		 //add minigames to board
+		 for(MiniGame mini : miniGames)
+			 add(mini);
+	}
+	
+	public void reset() {
+		for(MiniGame mini : miniGames)
+			mini.clear();
+	}
+	
+	public ArrayList<MiniGame> getMiniGames() {
+		return miniGames;
+	}
+}
+
+
+
+public class TrackingPanel extends JPanel{
+
+    /*TURN STUFF*/
+    private JPanel turnPanel; //turns panel to keep track of whose turn it is
+    private JLabel turnLabel;
+    private String turn;
+
+    /*OTHER*/
+    private GamePanel gamePanel;
+
+
+    public TrackingPanel( GamePanel gamePan ) {
+
+        setLayout( new GridLayout(1,4) );
+        setBorder(BorderFactory.createMatteBorder(2,2,4,2,Color.BLACK));
+
+        gamePanel = gamePan;
+
+        /*THIS PANEL DISPLAYS THE TEXT*/
+        turnPanel = new JPanel( new GridLayout(2,1) );
+        turn = gamePanel.getPlayerTurn().getLetter();
+        turnLabel = new JLabel("      Player " + turn + "'s turn");
+        add( turnPanel);
+
+    }//end constructor
+
+    /*THIS IS WHERE THINGS GO WRONG*/
+    public void updateTurn() {
+
+        turn = gamePanel.getPlayerTurn().getLetter();
+        turnLabel.setText( "      Player" + turn + "'s turn" );
+        System.out.println(turn);
+    }
+}
+
+
+
+public class MiniGame extends JPanel{
+	
+	private SquareButton[] squares;
+	private SquareButton[] line1, line2, line3, line4, line5, line6, line7, line8;
+	private ArrayList<SquareButton[]> lines;
+    private int ThreeinARowButtonCount;
+    private int panelNum;
+    private TrackingPanel trackingPanel;
+    private int[] winningLine;
+    private Player winner;
+    private boolean gameIsOver;
+    private Image gameOverIcon;
+
+	public MiniGame(GamePanel gp, int num) {
+		
+		//setlayout of the mini games
+		super( new GridLayout(3,3));
+		setFocusable(true);
+		setPreferredSize(new Dimension(220,220));
+		
+		//setPreferredSize(new Dimension(100,100));
+		trackingPanel = gp.getTrackingPanel();
+		panelNum = num;
+		
+		if(panelNum==1)
+			setBorder(BorderFactory.createMatteBorder(0,0,2,2,Color.BLACK));
+		else if(panelNum==2)
+			setBorder(BorderFactory.createMatteBorder(0,2,2,2,Color.BLACK));
+		else if(panelNum==3)
+			setBorder(BorderFactory.createMatteBorder(0,2,2,0,Color.BLACK));
+		else if(panelNum==4)
+			setBorder(BorderFactory.createMatteBorder(2,0,2,2,Color.BLACK));
+		else if(panelNum==5)
+			setBorder(BorderFactory.createMatteBorder(2,2,2,2,Color.BLACK));
+		else if(panelNum==6)
+			setBorder(BorderFactory.createMatteBorder(2,2,2,0,Color.BLACK));
+		else if(panelNum==7)
+			setBorder(BorderFactory.createMatteBorder(2,0,0,2,Color.BLACK));
+		else if(panelNum==8)
+			setBorder(BorderFactory.createMatteBorder(2,2,0,2,Color.BLACK));
+		else
+			setBorder(BorderFactory.createMatteBorder(2,2,0,0,Color.BLACK));
+	
+		//create list of buttons (each square)
+		squares = new SquareButton[9];
+		
+		//create squares and add squares to mini game
+		for ( int i = 0; i < squares.length; i++ ) {
+			squares[i] = new SquareButton(i);
+			add(squares[i]);
+		}
+	}//end constructor
+	
+
+	public int getPanelNum() {
+		return panelNum;
+	}
+	
+	public SquareButton[] getSquares() {
+		return squares;
+	}
+	
+	public boolean isOver() {
+		return gameIsOver;
+	}
+}
+
+
+public class SquareButton extends JButton {
+
+	private boolean empty;
+	private String letter;
+	private int squareNum;
+	
+	public SquareButton(int num) {
+		empty = true;
+		squareNum = num;
+		
+		if(num==0)
+			setBorder(BorderFactory.createMatteBorder(0,0,1,1,Color.BLACK));
+		else if(num==1)
+			setBorder(BorderFactory.createMatteBorder(0,1,1,1,Color.BLACK));
+		else if(num==2)
+			setBorder(BorderFactory.createMatteBorder(0,1,1,0,Color.BLACK));
+		else if(num==3)
+			setBorder(BorderFactory.createMatteBorder(1,0,1,1,Color.BLACK));
+		else if(num==4)
+			setBorder(BorderFactory.createMatteBorder(1,1,1,1,Color.BLACK));
+		else if(num==5)
+			setBorder(BorderFactory.createMatteBorder(1,1,1,0,Color.BLACK));
+		else if(num==6)
+			setBorder(BorderFactory.createMatteBorder(1,0,0,1,Color.BLACK));
+		else if(num==7)
+			setBorder(BorderFactory.createMatteBorder(1,1,0,1,Color.BLACK));
+		else
+			setBorder(BorderFactory.createMatteBorder(1,1,0,0,Color.BLACK));
+	
+	}
+	
+	public String getLetter() {
+		return letter;
+	}
+	public boolean isEmpty() {
+		return empty;
+	}
+	
+	public void setEmpty(boolean em) {
+		empty = em;
+	}
+	
+	public int getSquareNum() {
+		return squareNum;
+	}
+}
+
+
+
+public class Player {
+
+	private boolean human; //indicates if player is human or cpu 
+	private int score;
+	private String letter;
+	
+	//constructor
+	public Player( boolean hum, String let) {
+
+		//player is human or computer
+		human = hum;
+		letter = let;
+	}
+		
+	/* PLAYER METHODS */
+	public boolean isHuman() {
+		return human;
+	}
+
+	public void setHuman( boolean h ) {
+		human = h;
+	}
+	 
+	public String getLetter() {
+		return letter;
+	}
+}
